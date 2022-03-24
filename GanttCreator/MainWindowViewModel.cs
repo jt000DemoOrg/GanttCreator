@@ -39,6 +39,20 @@ namespace GanttCreator
             this.ExitCommand = new DelegateCommand(OnExit);
         }
 
+        protected override void OnLoaded()
+        {
+            base.OnLoaded();
+
+            if (!string.IsNullOrEmpty(UserSettings.Default.LastOpenFile))
+            {
+                if (!OpenGanttFile(UserSettings.Default.LastOpenFile))
+                {
+                    UserSettings.Default.LastOpenFile = string.Empty;
+                    UserSettings.Default.Save();
+                }
+            }
+        }
+
         private void OnExportFile(FrameworkElement frameworkElement)
         {
             var sfd = new SaveFileDialog()
@@ -107,26 +121,37 @@ namespace GanttCreator
             if (ofd.ShowDialog(ParentWindow).GetValueOrDefault(false))
             {
                 var fileName = ofd.FileName;
-                try
+                if (this.OpenGanttFile(fileName))
                 {
-                    var loadSettings = new JsonLoadSettings()
-                    {
-                        CommentHandling = CommentHandling.Ignore, 
-                        DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error
-                    };
-                    JsonSerializer jsonSerializer = new JsonSerializer()
-                    {
-                        MissingMemberHandling = MissingMemberHandling.Error,
-                        ContractResolver = new CamelCasePropertyNamesContractResolver()
-                    };
-                    var descriptor = JObject.Parse(File.ReadAllText(fileName), loadSettings)
-                                           .ToObject<GanttDescriptor>(jsonSerializer);
-                    GanttDescriptor = descriptor;
+                    UserSettings.Default.LastOpenFile = fileName;
+                    UserSettings.Default.Save();
                 }
-                catch (Exception e)
+            }
+        }
+
+        private bool OpenGanttFile(string fileName)
+        {
+            try
+            {
+                var loadSettings = new JsonLoadSettings()
                 {
-                    MessageBox.Show(ParentWindow, e.Message, "Open File Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                    CommentHandling = CommentHandling.Ignore,
+                    DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error
+                };
+                JsonSerializer jsonSerializer = new JsonSerializer()
+                {
+                    MissingMemberHandling = MissingMemberHandling.Error,
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                };
+                var descriptor = JObject.Parse(File.ReadAllText(fileName), loadSettings)
+                    .ToObject<GanttDescriptor>(jsonSerializer);
+                this.GanttDescriptor = descriptor;
+                return true;
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(this.ParentWindow, e.Message, "Open File Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
     }

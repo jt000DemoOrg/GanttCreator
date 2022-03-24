@@ -53,6 +53,46 @@ namespace Mechavian.GanttControls
                 grid.RowDefinitions.Add(new RowDefinition());
                 grid.Children.Add(CreateHeaderCell(work.Name, 0, row+1));
             }
+
+            for (var row = 0; row < descriptor.Work.Length; row++)
+            {
+                for (var col = 0; col < descriptor.Ranges.Length; col++)
+                {
+                    grid.Children.Add(CreateContentCell(col + 1, row + 1));
+                }
+
+                var work = descriptor.Work[row];
+                grid.Children.Add(CreateWorkCell(work.Start + 1, work.End - work.Start + 1, row + 1));
+            }
+
+        }
+
+        private static UIElement CreateWorkCell(int startCol, int span, int row)
+        {
+            var border = new Border
+            {
+                Background= new SolidColorBrush(Colors.DarkGray),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(5)
+            };
+            Grid.SetColumn(border, startCol);
+            Grid.SetColumnSpan(border, span);
+            Grid.SetRow(border, row);
+
+            return border;
+        }
+
+        private static UIElement CreateContentCell(int column, int row)
+        {
+            var border = new Border
+            {
+                BorderBrush = new SolidColorBrush(Colors.LightGray),
+                BorderThickness = new Thickness(column == 0 ? 1 : 0, row == 0 ? 1 : 0, 1, 1)
+            };
+            Grid.SetColumn(border, column);
+            Grid.SetRow(border, row);
+
+            return border;
         }
 
         private static Border CreateHeaderCell(string text, int column, int row)
