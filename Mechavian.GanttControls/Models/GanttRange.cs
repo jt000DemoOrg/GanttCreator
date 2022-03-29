@@ -3,12 +3,13 @@ using Newtonsoft.Json;
 
 namespace Mechavian.GanttControls.Models
 {
-    public class GanttDescriptor
+    public class GanttRange
     {
         [JsonIgnore]
         public Guid Id { get; } = Guid.NewGuid();
 
-        public GanttRange[] Ranges { get; set; }
-        public GanttWork[] Work { get; set; }
+        public string Name { get; set; }
+
+        public GanttRange[] Children { get; set; }
     }
 }

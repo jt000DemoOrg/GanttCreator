@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Mechavian.GanttControls.Models;
+using Mechavian.WpfHelpers.Linq;
 
 namespace Mechavian.GanttControls
 {
@@ -58,31 +61,36 @@ namespace Mechavian.GanttControls
             grid.ColumnDefinitions.Add(new ColumnDefinition() { Width = GridLength.Auto });
             grid.RowDefinitions.Add(new RowDefinition() { Height = new GridLength(1, GridUnitType.Star) });
 
-            grid.Children.Add(CreateHeaderCell(0, 0, HeaderBackground));
+            // Header
+            var headers = GanttHeaderCell.ProcessRanges(descriptor.Ranges);
+            var headerRowCount = headers.Values.Max(h => h.Row + h.RowSpan);
+            Enumerable.Range(0, headerRowCount).ForEach((_) => grid.RowDefinitions.Add(new RowDefinition()));
+            Enumerable.Range(0, headers.Values.Max(h => h.Column + h.ColumnSpan)).ForEach((_) => grid.ColumnDefinitions.Add(new ColumnDefinition()));
 
-            for (var col = 0; col < descriptor.Ranges.Length; col++)
+            foreach (var header in headers.Values)
             {
-                var range = descriptor.Ranges[col];
-                grid.ColumnDefinitions.Add(new ColumnDefinition());
-                grid.Children.Add(CreateHeaderCell(col+1, 0, text: range.Name, fg: HeaderForeground, bg: HeaderBackground));
-            }
-
-            for (var row = 0; row < descriptor.Work.Length; row++)
-            {
-                var work = descriptor.Work[row];
-                grid.RowDefinitions.Add(new RowDefinition());
-                grid.Children.Add(CreateHeaderCell(0, row+1, text: work.Name, fg: LabelForegrounds[row % LabelForegrounds.Length], bg: LabelBackgrounds[row % LabelBackgrounds.Length]));
+                grid.Children.Add(CreateColumnHeaderCell(header));
             }
 
             for (var row = 0; row < descriptor.Work.Length; row++)
             {
                 for (var col = 0; col < descriptor.Ranges.Length; col++)
                 {
-                    grid.Children.Add(CreateContentCell(col + 1, row + 1));
+                    grid.Children.Add(CreateContentCell(col + 1, row + headerRowCount));
                 }
 
                 var work = descriptor.Work[row];
-                grid.Children.Add(CreateWorkCell(work.Start + 1, work.End - work.Start + 1, row + 1, work.Progress));
+
+                // Work Item header column
+                grid.RowDefinitions.Add(new RowDefinition());
+                grid.Children.Add(CreateHeaderCell(0, row + headerRowCount, text: work.Name, fg: LabelForegrounds[row % LabelForegrounds.Length], bg: LabelBackgrounds[row % LabelBackgrounds.Length]));
+
+                // Work Item range item
+                var startHeader = headers[work.Start.Id];
+                var endHeader = headers[work.End.Id];
+                var spanCount = endHeader.Column + endHeader.ColumnSpan - startHeader.Column;
+
+                grid.Children.Add(CreateWorkCell(startHeader.Column + 1, spanCount, row + headerRowCount, work.Progress));
             }
         }
 
@@ -135,6 +143,29 @@ namespace Mechavian.GanttControls
             return border;
         }
 
+        private static Border CreateColumnHeaderCell(GanttHeaderCell headerCell)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(HeaderBackground)
+            };
+
+            Grid.SetColumn(border, headerCell.Column + 1);
+            Grid.SetColumnSpan(border, headerCell.ColumnSpan);
+            Grid.SetRow(border, headerCell.Row);
+            Grid.SetRowSpan(border, headerCell.RowSpan);
+
+            border.Child = new Label()
+            {
+                Foreground = new SolidColorBrush(HeaderForeground),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                FontFamily = new FontFamily("Segoe UI"),
+                Content = headerCell.GanttRange.Name
+            };
+
+            return border;
+        }
+
         private static Border CreateHeaderCell(int column, int row, Color? bg = null, string text = null, Color? fg = null)
         {
             var border = new Border();
@@ -152,13 +183,73 @@ namespace Mechavian.GanttControls
                 border.Child = new Label()
                 {
                     Foreground = new SolidColorBrush(fg.GetValueOrDefault(Colors.Black)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     FontFamily = new FontFamily("Segoe UI"),
+                    FontWeight = FontWeights.Bold,
                     Content = text
                 };
             }
 
             return border;
         }
+    }
+
+    public class GanttHeaderCell
+    {
+        public GanttRange GanttRange { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GanttHeaderCell" /> class.
+        /// </summary>
+        public GanttHeaderCell(GanttRange ganttRange)
+        {
+            this.GanttRange = ganttRange;
+        }
+
+        public int Column { get; set; }
+
+        public int ColumnSpan { get; set; }
+
+        public int Row { get; set; }
+
+        public int RowSpan { get; set; }
+
+        public Guid Id { get => this.GanttRange.Id; }
+
+        public static Dictionary<Guid, GanttHeaderCell> ProcessRanges(IEnumerable<GanttRange> ranges)
+        {
+            var headers = new Dictionary<Guid, GanttHeaderCell>();
+            ProcessRanges(headers, ranges, 1, 0, out _);
+
+            return headers;
+        }
+
+        private static void ProcessRanges(Dictionary<Guid, GanttHeaderCell> headers, IEnumerable<GanttRange> ranges, int startCol, int startRow, out int endCol)
+        {
+            int column = startCol;
+            foreach (var range in ranges)
+            {
+                var colSpan = 1;
+                if (range.Children != null)
+                {
+                    ProcessRanges(headers, range.Children, column, startRow + 1, out int childEndCol);
+                    colSpan = childEndCol - column;
+                }
+
+                var cell = new GanttHeaderCell(range)
+                {
+                    Column = column,
+                    ColumnSpan = colSpan,
+                    Row = startRow,
+                    RowSpan = 1
+                };
+
+                headers.Add(cell.Id, cell);
+                column += colSpan;
+            }
+
+            endCol = column;
+        }
+
     }
 }
