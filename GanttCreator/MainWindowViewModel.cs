@@ -1,8 +1,15 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using GanttCreator.AdoModels;
 using Mechavian.GanttControls.Models;
 using Mechavian.WpfHelpers;
 using Microsoft.Win32;
@@ -45,11 +52,14 @@ namespace GanttCreator
 
             if (!string.IsNullOrEmpty(UserSettings.Default.LastOpenFile))
             {
-                if (!OpenGanttFile(UserSettings.Default.LastOpenFile))
+                OpenGanttFile(UserSettings.Default.LastOpenFile).ContinueWith((task) =>
                 {
-                    UserSettings.Default.LastOpenFile = string.Empty;
-                    UserSettings.Default.Save();
-                }
+                    if (!task.Result)
+                    {
+                        UserSettings.Default.LastOpenFile = string.Empty;
+                        UserSettings.Default.Save();
+                    }
+                });
             }
         }
 
@@ -96,7 +106,31 @@ namespace GanttCreator
                     MessageBox.Show(ParentWindow, e.Message, "Save File Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
 
+        private async Task<GanttDescriptor> LoadGanttDescriptor(GanttFile ganttFile)
+        {
+            var assemblyName = Assembly.GetExecutingAssembly().GetName();
+            var httpClient = new HttpClient()
+            {
+                BaseAddress = new Uri(ganttFile.AzureDevOpsUri),
+                DefaultRequestHeaders =
+                {
+                    Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ganttFile.User}:{ganttFile.PersonalAccessToken}"))),
+                    UserAgent = { new ProductInfoHeaderValue(assemblyName.Name, assemblyName.Version.ToString()) },
+                    Accept = { new MediaTypeWithQualityHeaderValue("*/*") },
+                    Connection = { "keep-alive" }
+                }
+            };
+            var response = await httpClient.GetAsync($"{ganttFile.Organization}/{ganttFile.Project}/{ganttFile.Team}/_apis/work/teamsettings/iterations");
+            response.EnsureSuccessStatusCode();
+            var json = response.Content.ReadAsStringAsync().Result;
+            var iterations = JObject.Parse(json).ToObject<TeamIterationCollection>() ?? new TeamIterationCollection();
+            return new GanttDescriptor()
+            {
+                Ranges = iterations.Value.Select((i) => new GanttRange() { Name = i.Name }).ToArray(),
+                Work = Array.Empty<GanttWork>()
+            };
         }
 
         private void OnExit(object obj)
@@ -121,15 +155,18 @@ namespace GanttCreator
             if (ofd.ShowDialog(ParentWindow).GetValueOrDefault(false))
             {
                 var fileName = ofd.FileName;
-                if (this.OpenGanttFile(fileName))
+                this.OpenGanttFile(fileName).ContinueWith((task) =>
                 {
-                    UserSettings.Default.LastOpenFile = fileName;
-                    UserSettings.Default.Save();
-                }
+                    if (task.Result)
+                    {
+                        UserSettings.Default.LastOpenFile = fileName;
+                        UserSettings.Default.Save();
+                    }
+                });
             }
         }
 
-        private bool OpenGanttFile(string fileName)
+        private async Task<bool> OpenGanttFile(string fileName)
         {
             try
             {
@@ -143,14 +180,15 @@ namespace GanttCreator
                     MissingMemberHandling = MissingMemberHandling.Error,
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 };
-                var descriptor = JObject.Parse(File.ReadAllText(fileName), loadSettings)
-                    .ToObject<GanttDescriptor>(jsonSerializer);
-                this.GanttDescriptor = descriptor;
+                var ganttFile = JObject.Parse(File.ReadAllText(fileName), loadSettings).ToObject<GanttFile>(jsonSerializer);
+                var descriptor = await LoadGanttDescriptor(ganttFile);
+
+                Dispatcher.Invoke(() => GanttDescriptor = descriptor);
                 return true;
             }
             catch (Exception e)
             {
-                MessageBox.Show(this.ParentWindow, e.Message, "Open File Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => MessageBox.Show(this.ParentWindow, e.Message, "Open File Error", MessageBoxButton.OK, MessageBoxImage.Error));
                 return false;
             }
         }

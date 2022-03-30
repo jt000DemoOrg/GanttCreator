@@ -64,20 +64,15 @@ namespace Mechavian.GanttControls
             // Header
             var headers = GanttHeaderCell.ProcessRanges(descriptor.Ranges);
             var headerRowCount = headers.Values.Max(h => h.Row + h.RowSpan);
+            var headerColumnCount = headers.Values.Max(h => h.Column + h.ColumnSpan);
             Enumerable.Range(0, headerRowCount).ForEach((_) => grid.RowDefinitions.Add(new RowDefinition()));
-            Enumerable.Range(0, headers.Values.Max(h => h.Column + h.ColumnSpan)).ForEach((_) => grid.ColumnDefinitions.Add(new ColumnDefinition()));
+            Enumerable.Range(0, headerColumnCount).ForEach((_) => grid.ColumnDefinitions.Add(new ColumnDefinition()));
 
-            foreach (var header in headers.Values)
-            {
-                grid.Children.Add(CreateColumnHeaderCell(header));
-            }
+            headers.Values.ForEach((header) => grid.Children.Add(CreateColumnHeaderCell(header)));
 
             for (var row = 0; row < descriptor.Work.Length; row++)
             {
-                for (var col = 0; col < descriptor.Ranges.Length; col++)
-                {
-                    grid.Children.Add(CreateContentCell(col + 1, row + headerRowCount));
-                }
+                Enumerable.Range(0, headerColumnCount).ForEach((col) => grid.Children.Add(CreateContentCell(col + 1, row + headerRowCount)));
 
                 var work = descriptor.Work[row];
 
@@ -86,11 +81,12 @@ namespace Mechavian.GanttControls
                 grid.Children.Add(CreateHeaderCell(0, row + headerRowCount, text: work.Name, fg: LabelForegrounds[row % LabelForegrounds.Length], bg: LabelBackgrounds[row % LabelBackgrounds.Length]));
 
                 // Work Item range item
-                var startHeader = headers[work.Start.Id];
-                var endHeader = headers[work.End.Id];
-                var spanCount = endHeader.Column + endHeader.ColumnSpan - startHeader.Column;
-
-                grid.Children.Add(CreateWorkCell(startHeader.Column + 1, spanCount, row + headerRowCount, work.Progress));
+                if (headers.TryGetValue(work.Start.Id, out var startHeader)
+                    && headers.TryGetValue(work.End.Id, out var endHeader))
+                {
+                    var spanCount = endHeader.Column + endHeader.ColumnSpan - startHeader.Column;
+                    grid.Children.Add(CreateWorkCell(startHeader.Column + 1, spanCount, row + headerRowCount, work.Progress));
+                }
             }
         }
 

@@ -23,55 +23,5 @@
                           HorizontalAlignment="Left"
                           VerticalAlignment="Top"
                           GanttDescriptor="{Binding GanttDescriptor}" />
-        <!--<Border x:Name="GanttContent" Background="White">
-            <Grid VerticalAlignment="Top">
-                <Grid.RowDefinitions>
-                    <RowDefinition SharedSizeGroup="GanttRow" />
-                    <RowDefinition SharedSizeGroup="GanttRow" />
-                    <RowDefinition SharedSizeGroup="GanttRow" />
-                    <RowDefinition SharedSizeGroup="GanttRow" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition SharedSizeGroup="GanttCell" />
-                    <ColumnDefinition SharedSizeGroup="GanttCell" />
-                    <ColumnDefinition SharedSizeGroup="GanttCell" />
-                    <ColumnDefinition SharedSizeGroup="GanttCell" />
-                </Grid.ColumnDefinitions>
-
-                <Border Background="Blue" Grid.Row="0" Grid.Column="0" />
-
-                <Border Background="Blue" Grid.Row="0" Grid.Column="1">
-                    <Label Foreground="White" Content="Q1" HorizontalAlignment="Center" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="0" Grid.Column="2">
-                    <Label Foreground="White" Content="Q2" HorizontalAlignment="Center" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="0" Grid.Column="3">
-                    <Label Foreground="White" Content="Q3" HorizontalAlignment="Center" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="0" Grid.Column="4">
-                    <Label Foreground="White" Content="Q4" HorizontalAlignment="Center" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="1" Grid.Column="0">
-                    <Label Foreground="White" Content="Item 1" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="2" Grid.Column="0">
-                    <Label Foreground="White" Content="Item 2" />
-                </Border>
-
-                <Border Background="Blue" Grid.Row="3" Grid.Column="0">
-                    <Label Foreground="White" Content="Item 3" />
-                </Border>
-
-            </Grid>
-
-        </Border>-->
-        
     </DockPanel>
 </Window>
