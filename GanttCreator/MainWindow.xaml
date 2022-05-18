@@ -13,6 +13,9 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="_Open" Command="{Binding OpenFileCommand}" />
+                <MenuItem Header="Save _As" Command="{Binding SaveAsFileCommand}" />
+                <Separator />
+                <MenuItem Header="Load from ADO" Command="{Binding LoadFromADOCommand}" />
                 <MenuItem Header="_Export" Command="{Binding ExportFileCommand}" CommandParameter="{Binding ElementName=GanttContent }" />
                 <Separator />
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}" />

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -10,6 +11,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using GanttCreator.AdoModels;
+using GanttCreator.IO;
 using Mechavian.GanttControls.Models;
 using Mechavian.WpfHelpers;
 using Microsoft.Win32;
@@ -22,7 +24,10 @@ namespace GanttCreator
     public class MainWindowViewModel : ViewModel
     {
         private GanttDescriptor ganttDescriptor;
+
         public DelegateCommand OpenFileCommand { get; private set; }
+        public DelegateCommand SaveAsFileCommand { get; private set; }
+        public DelegateCommand LoadFromADOCommand { get; private set; }
         public DelegateCommand ExportFileCommand { get; private set; }
         public DelegateCommand ExitCommand { get; private set; }
 
@@ -39,11 +44,48 @@ namespace GanttCreator
             }
         }
 
+        public GanttFile GanttFile { get; set; }
+
         public MainWindowViewModel()
         {
-            this.OpenFileCommand = new DelegateCommand(this.OnOpenFile);
+            this.OpenFileCommand = new DelegateCommand(OnOpenFile);
+            this.SaveAsFileCommand = new DelegateCommand(OnSaveAsFile);
+            this.LoadFromADOCommand = new DelegateCommand(OnLoadFromADO);
             this.ExportFileCommand = new DelegateCommand<FrameworkElement>(OnExportFile);
             this.ExitCommand = new DelegateCommand(OnExit);
+        }
+
+        private void OnLoadFromADO(object obj)
+        {
+            LoadGanttDescriptor(GanttFile)
+                .ContinueWith(r =>
+                {
+                    Dispatcher.Invoke(() => GanttDescriptor = r.Result);
+                });
+        }
+
+        private void OnSaveAsFile(object obj)
+        {
+            var sfd = new SaveFileDialog()
+            {
+                AddExtension = true,
+                DefaultExt = "json",
+                RestoreDirectory = true,
+                OverwritePrompt = true,
+                Filter = "json files (*.json)|*.json|All files (*.*)|*.*",
+                Title = "Save File"
+            };
+
+            if (!string.IsNullOrEmpty(UserSettings.Default.LastOpenFile))
+            {
+                sfd.FileName = UserSettings.Default.LastOpenFile;
+            }
+
+            if (sfd.ShowDialog(ParentWindow).GetValueOrDefault(false))
+            {
+                SaveGanttDescriptor();
+                File.WriteAllText(sfd.FileName, JObject.FromObject(GanttFile).ToString(Formatting.Indented));
+            }
         }
 
         protected override void OnLoaded()
@@ -110,6 +152,26 @@ namespace GanttCreator
 
         private async Task<GanttDescriptor> LoadGanttDescriptor(GanttFile ganttFile)
         {
+            var rangesTask = GetRanges(ganttFile);
+            var workTask = GetWork(ganttFile);
+            return new GanttDescriptor()
+            {
+                Ranges = await rangesTask,
+                Work = await workTask
+            };
+        }
+        private void SaveGanttDescriptor()
+        {
+            if (this.GanttFile == null)
+            {
+                this.GanttFile = new GanttFile();
+            }
+
+            this.GanttFile.FromDescriptor(GanttDescriptor);
+        }
+
+        private static async Task<GanttRange[]> GetRanges(GanttFile ganttFile)
+        {
             var assemblyName = Assembly.GetExecutingAssembly().GetName();
             var httpClient = new HttpClient()
             {
@@ -126,10 +188,72 @@ namespace GanttCreator
             response.EnsureSuccessStatusCode();
             var json = response.Content.ReadAsStringAsync().Result;
             var iterations = JObject.Parse(json).ToObject<TeamIterationCollection>() ?? new TeamIterationCollection();
-            return new GanttDescriptor()
+            return iterations.Value.Select((i) => new GanttRange()
             {
-                Ranges = iterations.Value.Select((i) => new GanttRange() { Name = i.Name }).ToArray(),
-                Work = Array.Empty<GanttWork>()
+                Name = i.Name,
+                StartDate = i.Attributes.StartDate,
+                EndDate = i.Attributes.FinishDate
+            }).ToArray();
+        }
+
+        private static async Task<GanttWork[]> GetWork(GanttFile ganttFile)
+        {
+            var assemblyName = Assembly.GetExecutingAssembly().GetName();
+            var httpClient = new HttpClient()
+            {
+                BaseAddress = new Uri(ganttFile.AzureDevOpsUri),
+                DefaultRequestHeaders =
+                {
+                    Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ganttFile.User}:{ganttFile.PersonalAccessToken}"))),
+                    UserAgent = { new ProductInfoHeaderValue(assemblyName.Name, assemblyName.Version.ToString()) },
+                    Accept = { new MediaTypeWithQualityHeaderValue("*/*") },
+                    Connection = { "keep-alive" }
+                }
+            };
+
+            var wiql = @"SELECT
+    [System.Id],
+    [System.Title],
+    [System.BoardColumn]
+FROM workitems
+WHERE
+    [System.TeamProject] = @project
+    AND [System.WorkItemType] = 'Feature'
+    AND [System.AreaPath] UNDER 'OneAgile\PowerApps\Studio\Power Apps Advanced Makers'
+    AND [System.State] <> 'Closed'
+    AND [System.State] <> 'Cut'
+    AND [System.State] <> 'Removed'
+ORDER BY [System.BoardColumn] DESC,
+    [Microsoft.VSTS.Common.StackRank]";
+            var body = new JObject()
+            {
+                { "query", new JValue(wiql) }
+            };
+            var response = await httpClient.PostAsync($"{ganttFile.Organization}/{ganttFile.Project}/{ganttFile.Team}/_apis/wit/wiql?timePrecision=false&$top=20&api-version=6.0", 
+                new StringContent(body.ToString(Formatting.None), Encoding.UTF8, "application/json"));
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var wiqlOutput = JObject.Parse(json).ToObject<WiqlOutput>();
+
+            var ganttWork = new List<GanttWork>();
+            foreach (var workItem in wiqlOutput.WorkItems)
+            {
+                ganttWork.Add(await GetWork(httpClient, workItem.Url));
+            }
+
+            return ganttWork.ToArray();
+        }
+
+        private static async Task<GanttWork> GetWork(HttpClient httpClient, Uri uri)
+        {
+            var uriBuilder = new UriBuilder(uri);
+            uriBuilder.Query = "fields=System.Id,System.Title,System.BoardColumn,System.State";
+            var jsonResponse = await httpClient.GetStringAsync(uriBuilder.Uri);
+            var workItem = JObject.Parse(jsonResponse).ToObject<WorkItem>();
+
+            return new GanttWork()
+            {
+                Name = workItem.Fields.Title
             };
         }
 
@@ -178,12 +302,16 @@ namespace GanttCreator
                 JsonSerializer jsonSerializer = new JsonSerializer()
                 {
                     MissingMemberHandling = MissingMemberHandling.Error,
-                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                    ContractResolver = new CamelCasePropertyNamesContractResolver(),
                 };
-                var ganttFile = JObject.Parse(File.ReadAllText(fileName), loadSettings).ToObject<GanttFile>(jsonSerializer);
-                var descriptor = await LoadGanttDescriptor(ganttFile);
+                var ganttFile = JObject.Parse(await File.ReadAllTextAsync(fileName), loadSettings).ToObject<GanttFile>(jsonSerializer);
+                var descriptor = ganttFile.ToDescriptor();
 
-                Dispatcher.Invoke(() => GanttDescriptor = descriptor);
+                Dispatcher.Invoke(() =>
+                {
+                    this.GanttDescriptor = descriptor;
+                    this.GanttFile = ganttFile;
+                });
                 return true;
             }
             catch (Exception e)

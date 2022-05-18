@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Mechavian.GanttControls.Models;
+using Mechavian.WpfHelpers;
 using Mechavian.WpfHelpers.Linq;
 
 namespace Mechavian.GanttControls
@@ -14,7 +15,9 @@ namespace Mechavian.GanttControls
         public static readonly DependencyProperty GanttDescriptorProperty = DependencyProperty.Register("GanttDescriptor", typeof(GanttDescriptor), typeof(GanttChart), new PropertyMetadata(default(GanttDescriptor), OnGanttDescriptorChanged));
 
         private static readonly Color HeaderBackground = Color.FromRgb(114, 114, 114);
+        private static readonly Color CurrentRangeHeaderBackground = Colors.DarkOrange;
         private static readonly Color HeaderForeground = Color.FromRgb(255, 255, 255);
+        private static readonly Color CurrentRangeHeaderForeground = Color.FromRgb(114, 114, 114);
         private static readonly Color[] LabelBackgrounds = new[]
         {
             Color.FromRgb(186, 203, 229),
@@ -63,8 +66,8 @@ namespace Mechavian.GanttControls
 
             // Header
             var headers = GanttHeaderCell.ProcessRanges(descriptor.Ranges);
-            var headerRowCount = headers.Values.Max(h => h.Row + h.RowSpan);
-            var headerColumnCount = headers.Values.Max(h => h.Column + h.ColumnSpan);
+            var headerRowCount = headers.Values.Count == 0 ? 0 : headers.Values.Max(h => h.Row + h.RowSpan);
+            var headerColumnCount = headers.Values.Count == 0 ? 0 : headers.Values.Max(h => h.Column + h.ColumnSpan);
             Enumerable.Range(0, headerRowCount).ForEach((_) => grid.RowDefinitions.Add(new RowDefinition()));
             Enumerable.Range(0, headerColumnCount).ForEach((_) => grid.ColumnDefinitions.Add(new ColumnDefinition()));
 
@@ -81,8 +84,8 @@ namespace Mechavian.GanttControls
                 grid.Children.Add(CreateHeaderCell(0, row + headerRowCount, text: work.Name, fg: LabelForegrounds[row % LabelForegrounds.Length], bg: LabelBackgrounds[row % LabelBackgrounds.Length]));
 
                 // Work Item range item
-                if (headers.TryGetValue(work.Start.Id, out var startHeader)
-                    && headers.TryGetValue(work.End.Id, out var endHeader))
+                if (headers.TryGetValue(work.Start?.Id ?? Guid.Empty, out var startHeader)
+                    && headers.TryGetValue(work.End?.Id ?? Guid.Empty, out var endHeader))
                 {
                     var spanCount = endHeader.Column + endHeader.ColumnSpan - startHeader.Column;
                     grid.Children.Add(CreateWorkCell(startHeader.Column + 1, spanCount, row + headerRowCount, work.Progress));
@@ -133,6 +136,7 @@ namespace Mechavian.GanttControls
                 BorderBrush = new SolidColorBrush(Colors.LightGray),
                 BorderThickness = new Thickness(column == 0 ? 1 : 0, row == 0 ? 1 : 0, 1, 1)
             };
+
             Grid.SetColumn(border, column);
             Grid.SetRow(border, row);
 
@@ -141,9 +145,22 @@ namespace Mechavian.GanttControls
 
         private static Border CreateColumnHeaderCell(GanttHeaderCell headerCell)
         {
+            Color headerBackground;
+            Color headerForeground;
+            if (DateTimeOffset.Now.Between(headerCell.GanttRange.StartDate, headerCell.GanttRange.EndDate))
+            {
+                headerBackground = CurrentRangeHeaderBackground;
+                headerForeground = CurrentRangeHeaderForeground;
+            }
+            else
+            {
+                headerBackground = HeaderBackground;
+                headerForeground = HeaderForeground;
+            }
+
             var border = new Border
             {
-                Background = new SolidColorBrush(HeaderBackground)
+                Background = new SolidColorBrush(headerBackground)
             };
 
             Grid.SetColumn(border, headerCell.Column + 1);
@@ -153,7 +170,7 @@ namespace Mechavian.GanttControls
 
             border.Child = new Label()
             {
-                Foreground = new SolidColorBrush(HeaderForeground),
+                Foreground = new SolidColorBrush(headerForeground),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 FontFamily = new FontFamily("Segoe UI"),
                 Content = headerCell.GanttRange.Name
