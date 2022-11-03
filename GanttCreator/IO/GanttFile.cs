@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Mechavian.GanttControls.Json;
 using Mechavian.GanttControls.Models;
-using Newtonsoft.Json;
 
 namespace GanttCreator.IO
 {
@@ -52,15 +50,5 @@ namespace GanttCreator.IO
                 };
             }).ToList();
         }
-    }
-
-    public class GanttFileWork
-    {
-        public string Name { get; set; }
-        public string Start { get; set; }
-        public string End { get; set; }
-
-        [JsonConverter(typeof(PercentageConverter))]
-        public double Progress { get; set; }
     }
 }

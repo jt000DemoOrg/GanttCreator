@@ -147,15 +147,19 @@ namespace Mechavian.GanttControls
         {
             Color headerBackground;
             Color headerForeground;
-            if (DateTimeOffset.Now.Between(headerCell.GanttRange.StartDate, headerCell.GanttRange.EndDate))
+            FontWeight headerFontWeight;
+
+            if (headerCell.GanttRange.Current || DateTimeOffset.Now.Between(headerCell.GanttRange.StartDate, headerCell.GanttRange.EndDate))
             {
                 headerBackground = CurrentRangeHeaderBackground;
                 headerForeground = CurrentRangeHeaderForeground;
+                headerFontWeight = FontWeights.Bold;
             }
             else
             {
                 headerBackground = HeaderBackground;
                 headerForeground = HeaderForeground;
+                headerFontWeight = FontWeights.Normal;
             }
 
             var border = new Border
@@ -173,6 +177,7 @@ namespace Mechavian.GanttControls
                 Foreground = new SolidColorBrush(headerForeground),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 FontFamily = new FontFamily("Segoe UI"),
+                FontWeight = headerFontWeight,
                 Content = headerCell.GanttRange.Name
             };
 

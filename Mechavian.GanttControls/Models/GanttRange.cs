@@ -15,5 +15,7 @@ namespace Mechavian.GanttControls.Models
         public DateTimeOffset EndDate { get; set; }
 
         public GanttRange[] Children { get; set; }
+
+        public bool Current { get; set; } = false;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -28,7 +29,8 @@ namespace GanttCreator
         public DelegateCommand OpenFileCommand { get; private set; }
         public DelegateCommand SaveAsFileCommand { get; private set; }
         public DelegateCommand LoadFromADOCommand { get; private set; }
-        public DelegateCommand ExportFileCommand { get; private set; }
+        public DelegateCommand ExportToFileCommand { get; private set; }
+        public DelegateCommand ExportToClipboardCommand { get; private set; }
         public DelegateCommand ExitCommand { get; private set; }
 
         public GanttDescriptor GanttDescriptor
@@ -51,7 +53,8 @@ namespace GanttCreator
             this.OpenFileCommand = new DelegateCommand(OnOpenFile);
             this.SaveAsFileCommand = new DelegateCommand(OnSaveAsFile);
             this.LoadFromADOCommand = new DelegateCommand(OnLoadFromADO);
-            this.ExportFileCommand = new DelegateCommand<FrameworkElement>(OnExportFile);
+            this.ExportToFileCommand = new DelegateCommand<FrameworkElement>(this.OnExportToFile);
+            this.ExportToClipboardCommand = new DelegateCommand<FrameworkElement>(this.OnExportToClipboard);
             this.ExitCommand = new DelegateCommand(OnExit);
         }
 
@@ -105,7 +108,7 @@ namespace GanttCreator
             }
         }
 
-        private void OnExportFile(FrameworkElement frameworkElement)
+        private void OnExportToFile(FrameworkElement frameworkElement)
         {
             var sfd = new SaveFileDialog()
             {
@@ -121,20 +124,7 @@ namespace GanttCreator
             {
                 try
                 {
-                    var targetWidth = (int)frameworkElement.ActualWidth;
-                    var targetHeight = (int)frameworkElement.ActualHeight;
-
-                    // Exit if there's no 'area' to render
-                    if (targetWidth == 0 || targetHeight == 0)
-                        throw new Exception("Framework Element has no area");
-
-                    // Prepare the rendering target
-                    var targetBitmap = new RenderTargetBitmap(targetWidth, targetHeight, 96, 96, PixelFormats.Pbgra32);
-
-                    // Render the framework element into the target
-                    targetBitmap.Render(frameworkElement);
-
-                    var bitmapFrame = BitmapFrame.Create(targetBitmap);
+                    var bitmapFrame = GetFrameworkElementAsBitmap(frameworkElement);
                     var bitmapEncoder = new PngBitmapEncoder();
                     bitmapEncoder.Frames.Add(bitmapFrame);
 
@@ -148,6 +138,47 @@ namespace GanttCreator
                     MessageBox.Show(ParentWindow, e.Message, "Save File Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void OnExportToClipboard(FrameworkElement frameworkElement)
+        {
+            try
+            {
+                var bitmapFrame = GetFrameworkElementAsBitmap(frameworkElement);
+                var bitmapEncoder = new PngBitmapEncoder();
+                bitmapEncoder.Frames.Add(bitmapFrame);
+
+                var tempFilePath = Path.ChangeExtension(Path.GetTempFileName(), "png");
+                using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
+                {
+                    bitmapEncoder.Save(fileStream);
+                }
+
+                Clipboard.SetFileDropList(new StringCollection() { tempFilePath });
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(ParentWindow, e.Message, "Save to Clipboard Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static BitmapFrame GetFrameworkElementAsBitmap(FrameworkElement frameworkElement)
+        {
+            var targetWidth = (int)Math.Ceiling(frameworkElement.ActualWidth * 96 / 72d);
+            var targetHeight = (int)Math.Ceiling(frameworkElement.ActualHeight * 96 / 72d);
+
+            // Exit if there's no 'area' to render
+            if (targetWidth == 0 || targetHeight == 0)
+                throw new Exception("Framework Element has no area");
+
+            // Prepare the rendering target
+            var targetBitmap = new RenderTargetBitmap(targetWidth, targetHeight, 96, 96, PixelFormats.Default);
+
+            // Render the framework element into the target
+            targetBitmap.Render(frameworkElement);
+
+            var bitmapFrame = BitmapFrame.Create(targetBitmap);
+            return bitmapFrame;
         }
 
         private async Task<GanttDescriptor> LoadGanttDescriptor(GanttFile ganttFile)
