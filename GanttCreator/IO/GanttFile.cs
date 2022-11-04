@@ -18,9 +18,25 @@ namespace GanttCreator.IO
 
         public List<GanttFileWork> Work { get; set; }
 
+        private IEnumerable<GanttRange> EnumerateAllRanges(IEnumerable<GanttRange> ranges)
+        {
+            var outputRanges = Enumerable.Empty<GanttRange>();
+
+            foreach (var range in ranges)
+            {
+                outputRanges = outputRanges.Append(range);
+                if (range.Children != null)
+                {
+                    outputRanges = outputRanges.Concat(EnumerateAllRanges(range.Children));
+                }
+            }
+
+            return outputRanges;
+        }
+
         public GanttDescriptor ToDescriptor()
         {
-            var rangeById = Ranges?.ToDictionary(r => r.Name, r => r);
+            var rangeById = EnumerateAllRanges(Ranges).ToDictionary(r => r.Name, r => r);
             var descriptor = new GanttDescriptor()
             {
                 Ranges = Ranges?.ToArray() ?? Array.Empty<GanttRange>(),

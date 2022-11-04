@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -31,6 +30,7 @@ namespace GanttCreator
 
         public DelegateCommand OpenFileCommand { get; private set; }
         public DelegateCommand SaveAsFileCommand { get; private set; }
+        public DelegateCommand RefreshCommand { get; private set; }
         public DelegateCommand SaveXamlFileCommand { get; private set; }
         public DelegateCommand LoadFromADOCommand { get; private set; }
         public DelegateCommand ExportToFileCommand { get; private set; }
@@ -56,6 +56,7 @@ namespace GanttCreator
         {
             this.OpenFileCommand = new DelegateCommand(OnOpenFile);
             this.SaveAsFileCommand = new DelegateCommand(OnSaveAsFile);
+            this.RefreshCommand = new DelegateCommand(OnRefresh);
             this.SaveXamlFileCommand = new DelegateCommand<FrameworkElement>(OnSaveXamlFile);
             this.LoadFromADOCommand = new DelegateCommand(OnLoadFromADO);
             this.ExportToFileCommand = new DelegateCommand<FrameworkElement>(this.OnExportToFile);
@@ -348,6 +349,14 @@ ORDER BY [System.BoardColumn] DESC,
                         UserSettings.Default.Save();
                     }
                 });
+            }
+        }
+
+        private void OnRefresh(object obj)
+        {
+            if (!string.IsNullOrEmpty(UserSettings.Default.LastOpenFile))
+            {
+                OpenGanttFile(UserSettings.Default.LastOpenFile);
             }
         }
 

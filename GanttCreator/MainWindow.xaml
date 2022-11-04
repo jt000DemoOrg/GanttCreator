@@ -14,6 +14,7 @@
             <MenuItem Header="_File">
                 <MenuItem Header="_Open..." Command="{Binding OpenFileCommand}" />
                 <MenuItem Header="Save _As..." Command="{Binding SaveAsFileCommand}" />
+                <MenuItem Header="Refresh" Command="{Binding RefreshCommand}" />
                 <Separator />
                 <MenuItem Header="Load from ADO" Command="{Binding LoadFromADOCommand}" />
                 <MenuItem Header="_Export">
@@ -27,7 +28,7 @@
         </Menu>
         <gantt:GanttChart x:Name="GanttContent" 
                           Background="White" 
-                          HorizontalAlignment="Left"
+                          HorizontalAlignment="Stretch"
                           VerticalAlignment="Top"
                           GanttDescriptor="{Binding GanttDescriptor}" />
     </DockPanel>

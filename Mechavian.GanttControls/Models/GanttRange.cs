@@ -17,5 +17,7 @@ namespace Mechavian.GanttControls.Models
         public GanttRange[] Children { get; set; }
 
         public bool Current { get; set; } = false;
+
+        public bool Display { get; set; } = true;
     }
 }

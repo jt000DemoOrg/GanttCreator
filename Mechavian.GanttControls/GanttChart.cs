@@ -71,12 +71,12 @@ namespace Mechavian.GanttControls
 
             // Header
             var headers = GanttHeaderCell.ProcessRanges(descriptor.Ranges);
-            var headerRowCount = headers.Values.Count == 0 ? 0 : headers.Values.Max(h => h.Row + h.RowSpan);
-            var headerColumnCount = headers.Values.Count == 0 ? 0 : headers.Values.Max(h => h.Column + h.ColumnSpan);
+            var headerRowCount = headers.Values.Count == 0 ? 0 : headers.Values.Where(h => h.Display).Max(h => h.Row + h.RowSpan);
+            var headerColumnCount = headers.Values.Count == 0 ? 0 : headers.Values.Where(h => h.Display).Max(h => h.Column + h.ColumnSpan - 1);
             Enumerable.Range(0, headerRowCount).ForEach((_) => grid.RowDefinitions.Add(new RowDefinition()));
             Enumerable.Range(0, headerColumnCount).ForEach((_) => grid.ColumnDefinitions.Add(new ColumnDefinition()));
 
-            headers.Values.ForEach((header) => grid.Children.Add(CreateColumnHeaderCell(header)));
+            headers.Values.Where(h => h.Display).ForEach((header) => grid.Children.Add(CreateColumnHeaderCell(header)));
 
             for (var row = 0; row < descriptor.Work.Length; row++)
             {
@@ -93,7 +93,7 @@ namespace Mechavian.GanttControls
                     && headers.TryGetValue(work.End?.Id ?? Guid.Empty, out var endHeader))
                 {
                     var spanCount = endHeader.Column + endHeader.ColumnSpan - startHeader.Column;
-                    grid.Children.Add(CreateWorkCell(startHeader.Column + 1, spanCount, row + headerRowCount, work.Progress));
+                    grid.Children.Add(CreateWorkCell(startHeader.Column, spanCount, row + headerRowCount, work.Progress));
                 }
             }
         }
@@ -172,7 +172,7 @@ namespace Mechavian.GanttControls
                 Background = new SolidColorBrush(headerBackground)
             };
 
-            Grid.SetColumn(border, headerCell.Column + 1);
+            Grid.SetColumn(border, headerCell.Column);
             Grid.SetColumnSpan(border, headerCell.ColumnSpan);
             Grid.SetRow(border, headerCell.Row);
             Grid.SetRowSpan(border, headerCell.RowSpan);
@@ -237,6 +237,8 @@ namespace Mechavian.GanttControls
 
         public int RowSpan { get; set; }
 
+        public bool Display { get; set; }
+
         public Guid Id { get => this.GanttRange.Id; }
 
         public static Dictionary<Guid, GanttHeaderCell> ProcessRanges(IEnumerable<GanttRange> ranges)
@@ -264,7 +266,8 @@ namespace Mechavian.GanttControls
                     Column = column,
                     ColumnSpan = colSpan,
                     Row = startRow,
-                    RowSpan = 1
+                    RowSpan = 1,
+                    Display = range.Display
                 };
 
                 headers.Add(cell.Id, cell);
