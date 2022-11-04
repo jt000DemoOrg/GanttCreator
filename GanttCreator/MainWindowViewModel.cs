@@ -9,10 +9,13 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using GanttCreator.AdoModels;
 using GanttCreator.IO;
+using Mechavian.GanttControls;
 using Mechavian.GanttControls.Models;
 using Mechavian.WpfHelpers;
 using Microsoft.Win32;
@@ -28,6 +31,7 @@ namespace GanttCreator
 
         public DelegateCommand OpenFileCommand { get; private set; }
         public DelegateCommand SaveAsFileCommand { get; private set; }
+        public DelegateCommand SaveXamlFileCommand { get; private set; }
         public DelegateCommand LoadFromADOCommand { get; private set; }
         public DelegateCommand ExportToFileCommand { get; private set; }
         public DelegateCommand ExportToClipboardCommand { get; private set; }
@@ -52,6 +56,7 @@ namespace GanttCreator
         {
             this.OpenFileCommand = new DelegateCommand(OnOpenFile);
             this.SaveAsFileCommand = new DelegateCommand(OnSaveAsFile);
+            this.SaveXamlFileCommand = new DelegateCommand<FrameworkElement>(OnSaveXamlFile);
             this.LoadFromADOCommand = new DelegateCommand(OnLoadFromADO);
             this.ExportToFileCommand = new DelegateCommand<FrameworkElement>(this.OnExportToFile);
             this.ExportToClipboardCommand = new DelegateCommand<FrameworkElement>(this.OnExportToClipboard);
@@ -91,6 +96,27 @@ namespace GanttCreator
             }
         }
 
+        private void OnSaveXamlFile(FrameworkElement frameworkElement)
+        {
+            var sfd = new SaveFileDialog()
+            {
+                AddExtension = true,
+                DefaultExt = "xaml",
+                RestoreDirectory = true,
+                OverwritePrompt = true,
+                Filter = "xaml files (*.xaml)|*.xaml|All files (*.*)|*.*",
+                Title = "Save File"
+            };
+
+            if (sfd.ShowDialog(ParentWindow).GetValueOrDefault(false))
+            {
+                using var streamWriter = new StreamWriter(sfd.OpenFile());
+                var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
+
+                XamlWriter.Save(grid, streamWriter);
+            }
+        }
+
         protected override void OnLoaded()
         {
             base.OnLoaded();
@@ -124,7 +150,9 @@ namespace GanttCreator
             {
                 try
                 {
-                    var bitmapFrame = GetFrameworkElementAsBitmap(frameworkElement);
+                    var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
+
+                    var bitmapFrame = GetFrameworkElementAsBitmap(grid);
                     var bitmapEncoder = new PngBitmapEncoder();
                     bitmapEncoder.Frames.Add(bitmapFrame);
 
@@ -144,7 +172,9 @@ namespace GanttCreator
         {
             try
             {
-                var bitmapFrame = GetFrameworkElementAsBitmap(frameworkElement);
+                var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
+
+                var bitmapFrame = GetFrameworkElementAsBitmap(grid);
                 var bitmapEncoder = new PngBitmapEncoder();
                 bitmapEncoder.Frames.Add(bitmapFrame);
 
@@ -164,8 +194,8 @@ namespace GanttCreator
 
         private static BitmapFrame GetFrameworkElementAsBitmap(FrameworkElement frameworkElement)
         {
-            var targetWidth = (int)Math.Ceiling(frameworkElement.ActualWidth * 96 / 72d);
-            var targetHeight = (int)Math.Ceiling(frameworkElement.ActualHeight * 96 / 72d);
+            var targetWidth = (int)Math.Ceiling(frameworkElement.ActualWidth);
+            var targetHeight = (int)Math.Ceiling(frameworkElement.ActualHeight);
 
             // Exit if there's no 'area' to render
             if (targetWidth == 0 || targetHeight == 0)

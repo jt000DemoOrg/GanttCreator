@@ -46,6 +46,11 @@ namespace Mechavian.GanttControls
             set { SetValue(GanttDescriptorProperty, value); }
         }
 
+        public Grid GetTemplateChildGrid()
+        {
+            return this.GetTemplateChild("Grid") as Grid;
+        }
+
         private static void OnGanttDescriptorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var ganttChart = (GanttChart)d;

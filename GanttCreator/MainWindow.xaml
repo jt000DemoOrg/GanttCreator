@@ -17,7 +17,8 @@
                 <Separator />
                 <MenuItem Header="Load from ADO" Command="{Binding LoadFromADOCommand}" />
                 <MenuItem Header="_Export">
-                    <MenuItem Header="To File..."  Command="{Binding ExportToFileCommand}" CommandParameter="{Binding ElementName=GanttContent }" />
+                    <MenuItem Header="To PNG File..."  Command="{Binding ExportToFileCommand}" CommandParameter="{Binding ElementName=GanttContent }" />
+                    <MenuItem Header="To Xaml File..."  Command="{Binding SaveXamlFileCommand}" CommandParameter="{Binding ElementName=GanttContent }" />
                     <MenuItem Header="To Clipboard"  Command="{Binding ExportToClipboardCommand}" CommandParameter="{Binding ElementName=GanttContent }" />
                 </MenuItem>
                 <Separator />
