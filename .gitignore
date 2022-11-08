@@ -2,3 +2,6 @@
 **/bin
 **/obj
 **/*.user
+
+GanttCreator.MSIX/AppPackages/**
+GanttCreator.MSIX/BundleArtifacts/**
