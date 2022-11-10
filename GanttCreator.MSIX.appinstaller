@@ -1,12 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <AppInstaller
 	Uri="https://jt000demoorg.github.io/GanttCreator/GanttCreator.MSIX.appinstaller"
-	Version="1.0.1.0" xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
+	Version="1.0.2.0" xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
 	<MainBundle
 		Name="496e433a-ccc1-4ed1-be73-95658d30e5fb"
-		Version="1.0.1.0"
+		Version="1.0.2.0"
 		Publisher="CN=jt000"
-		Uri="https://jt000demoorg.github.io/GanttCreator/GanttCreator.MSIX_1.0.1.0_Debug_Test/GanttCreator.MSIX_1.0.1.0_AnyCPU_Debug.appxbundle" />
+		Uri="https://jt000demoorg.github.io/GanttCreator/GanttCreator.MSIX_1.0.2.0_Debug_Test/GanttCreator.MSIX_1.0.2.0_AnyCPU_Debug.appxbundle" />
 	<UpdateSettings>
 		<OnLaunch
 			HoursBetweenUpdateChecks="0" />
