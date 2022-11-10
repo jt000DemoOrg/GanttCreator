@@ -9,7 +9,7 @@
   <Identity
     Name="496e433a-ccc1-4ed1-be73-95658d30e5fb"
     Publisher="CN=jt000"
-    Version="1.0.1.0" />
+    Version="1.0.5.0" />
 
   <Properties>
     <DisplayName>Gantt Creator</DisplayName>
