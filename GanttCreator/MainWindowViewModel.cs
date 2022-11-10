@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Xml;
 using GanttCreator.AdoModels;
 using GanttCreator.IO;
 using Mechavian.GanttControls;
@@ -21,6 +22,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+using Formatting = Newtonsoft.Json.Formatting;
 
 namespace GanttCreator
 {
@@ -143,7 +145,7 @@ namespace GanttCreator
                 DefaultExt = "png",
                 RestoreDirectory = true,
                 OverwritePrompt = true,
-                Filter = "png files (*.png)|*.png|All files (*.*)|*.*",
+                Filter = "png files (*.png)|*.png|svg files (*.svg)|*.svg|All files (*.*)|*.*",
                 Title = "Save File"
             };
 
@@ -151,15 +153,29 @@ namespace GanttCreator
             {
                 try
                 {
-                    var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
-
-                    var bitmapFrame = GetFrameworkElementAsBitmap(grid);
-                    var bitmapEncoder = new PngBitmapEncoder();
-                    bitmapEncoder.Frames.Add(bitmapFrame);
-
-                    using (var fileStream = new FileStream(sfd.FileName, FileMode.Create))
+                    var extension = Path.GetExtension(sfd.FileName).ToLowerInvariant();
+                    if (extension == ".png")
                     {
-                        bitmapEncoder.Save(fileStream);
+                        var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
+
+                        var bitmapFrame = GetFrameworkElementAsBitmap(grid);
+                        var bitmapEncoder = new PngBitmapEncoder();
+                        bitmapEncoder.Frames.Add(bitmapFrame);
+
+                        using (var fileStream = new FileStream(sfd.FileName, FileMode.Create))
+                        {
+                            bitmapEncoder.Save(fileStream);
+                        }
+                    }
+                    else if (extension == ".svg")
+                    {
+                        var grid = ((GanttChart)frameworkElement).GetTemplateChildGrid();
+                        var svgDoc = grid.ToSvg();
+
+                        using var xmlWriter = new XmlTextWriter(sfd.FileName, Encoding.UTF8);
+                        xmlWriter.Formatting = System.Xml.Formatting.Indented;
+
+                        svgDoc.WriteTo(xmlWriter);
                     }
                 }
                 catch (Exception e)
